@@ -43,7 +43,9 @@ namespace MonkeyArmsTests
 		[Test(Description="Assert when a class is registered via interface Get by interface returns correct class")]
 		public void TestRegisterInterface ()
 		{
-			DI.MapClassToInterface<ITestClass, TestClass> ();
+            // TODO: Huh?
+			//DI.MapClassToInterface<ITestClass, TestClass> ();
+            DI.MapClassToInterface<TestClass, ITestClass> ();
 			Assert.IsTrue (DI.Get<ITestClass> () is TestClass);
 		}
 
@@ -132,7 +134,7 @@ namespace MonkeyArmsTests
 
 		public override void Execute (InvokerArgs args)
 		{
-			base.Execute (args);
+			Execute (args);
 			PM.Executed = true;
 		
 		}
@@ -150,7 +152,7 @@ namespace MonkeyArmsTests
 
 		public override void Execute (InvokerArgs args)
 		{
-			base.Execute (args);
+			Execute (args);
 			Executed = true;
 		}
 	}

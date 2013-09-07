@@ -131,13 +131,13 @@ namespace MonkeyArmsTests
 
 			public override void Register ()
 			{
-				base.Register ();
+				Register ();
 				RegisterInvoked = true;
 			}
 
 			public override void Unregister ()
 			{
-				base.Unregister ();
+				Unregister ();
 				UnregisterInvoked = true;
 			}
 		}

@@ -1,144 +1,169 @@
-using TinyIoC;
+﻿using TinyIoC;
 using System.Collections.Generic;
 using System;
 using System.Diagnostics;
 
 namespace MonkeyArms
 {
-	public static class DI
-	{
-		private static TinyIoCContainer Injector = new TinyIoCContainer ();
+    public static class DI
+    {
+        private static TinyIoCContainer Injector = new TinyIoCContainer();
 
-		private static Dictionary<Type, object> Instances = new Dictionary<Type, object>();
+        private static Dictionary<Type, object> Instances = new Dictionary<Type, object>();
 
-		public static void MapSingleton<TSingleton> ()
-			where TSingleton :class
-		{
-			Injector.Register<TSingleton> ().AsSingleton ();
-		}
+        public static void MapSingleton<TSingleton>()
+            where TSingleton : class
+        {
+            Injector.Register<TSingleton>().AsSingleton();
+        }
 
-		public static void UnMapSingleton<TSingleton>()
-			where TSingleton :class
-		{
-			Injector.Register<TSingleton> ().AsMultiInstance();
-		}
+        public static void UnMapSingleton<TSingleton>()
+            where TSingleton : class
+        {
+            Injector.Register<TSingleton>().AsMultiInstance();
+        }
 
-		public static void MapInstanceToSingleton<TSingleton>(object instance)
-		{
-			Instances [typeof(TSingleton)] = instance;
-		}
+        public static void MapInstanceToSingleton<TSingleton>(object instance)
+        {
+            Instances[typeof(TSingleton)] = instance;
+        }
 
-		public static void UnMapInstanceFromSingleton<TSingleton>()
-		{
-			if(Instances.ContainsKey(typeof(TSingleton))){
-				Instances.Remove (typeof(TSingleton));
-			}
-		}
+        public static void UnMapInstanceFromSingleton<TSingleton>()
+        {
+            if (Instances.ContainsKey(typeof(TSingleton)))
+            {
+                Instances.Remove(typeof(TSingleton));
+            }
+        }
 
-		public static void MapClassToInterface<TImplementation, TInterface> ()
-			where TImplementation : class, TInterface
-			where TInterface : class
-		{
- 			Injector.Register<TInterface, TImplementation> ().AsMultiInstance();	
-		}
+        public static void MapClassToInterface<TImplementation, TInterface>()
+            where TImplementation : class, TInterface
+            where TInterface : class
+        {
+            Injector.Register<TInterface, TImplementation>().AsMultiInstance();
+        }
 
-		public static TInvoker MapCommandToInvoker<TCommand, TInvoker> ()
-			where TCommand : Command
-			where TInvoker : Invoker
-		{
-		
-
-			MapSingleton<TInvoker> ();
-			var invoker = DI.Get<TInvoker> ();
-			invoker.AddCommand <TCommand>();
-
-			return invoker;
-		}
-
-		/*
-		 * Mediator mappings
-		 */
-
-		private static Dictionary<Type, Type> ClassMediatorMappings = new Dictionary<Type,Type>(); 
-		private static Dictionary<IMediatorTarget, Mediator> MediatorAssignments = new Dictionary<IMediatorTarget, Mediator>();
-
-		public static void MapMediatorToClass<TMediator, TClass> ()
-			where TMediator:Mediator
-			where TClass : IMediatorTarget
-		{
-			ClassMediatorMappings[typeof(TClass)] = typeof(TMediator);
-		}
-
-		public static Mediator RequestMediator(IMediatorTarget target)
-		{
-			if (target == null) {
-				throw(new ArgumentException("Null cannot be passed for IMediatorTarget"));
-			}
-
-			if(MediatorAssignments.ContainsKey(target)){
-				throw(new ArgumentException("Target already has Mediator assigned to it."));
-			}
-
-			var targetType = target.GetType ();
+        public static TInvoker MapCommandToInvoker<TCommand, TInvoker>()
+            where TCommand : Command
+            where TInvoker : Invoker
+        {
 
 
+            MapSingleton<TInvoker>();
+            var invoker = DI.Get<TInvoker>();
+            invoker.AddCommand<TCommand>();
 
-			//if we don't have this class type specifically mapped
-			if (!ClassMediatorMappings.ContainsKey (targetType)) {
-				//checking to see if this target has a super class that has a mediator assigned to it
-				foreach(Type classType in ClassMediatorMappings.Keys){
-					//TODO: See if this would be better targetType.BaseType
-					if(targetType.IsSubclassOf(classType) || targetType.GetInterface(classType.Name) != null){
-						return CreateMediator (target, classType);
-					}
-				}
-				//if still nothing we blow an exception
-				throw(new ArgumentException ("Target type does not have mediator type mapped for it. Invoke MapMediatorToClass first."));
-			}
+            return invoker;
+        }
+
+        /*
+         * Mediator mappings
+         */
+
+        private static Dictionary<Type, Type> ClassMediatorMappings = new Dictionary<Type, Type>();
+        private static Dictionary<IMediatorTarget, Mediator> MediatorAssignments = new Dictionary<IMediatorTarget, Mediator>();
+
+        public static void MapMediatorToClass<TMediator, TClass>()
+            where TMediator : Mediator
+            where TClass : IMediatorTarget
+        {
+            ClassMediatorMappings[typeof(TClass)] = typeof(TMediator);
+        }
+
+        public static Mediator RequestMediator(IMediatorTarget target)
+        {
+            if (target == null)
+            {
+                throw (new ArgumentException("Null cannot be passed for IMediatorTarget"));
+            }
+
+            if (MediatorAssignments.ContainsKey(target))
+            {
+                throw (new ArgumentException("Target already has Mediator assigned to it."));
+            }
+
+            var targetType = target.GetType();
 
 
-			return CreateMediator (target, targetType);
 
-		}
+            //if we don't have this class type specifically mapped
+            if (!ClassMediatorMappings.ContainsKey(targetType))
+            {
+                //checking to see if this target has a super class that has a mediator assigned to it
+                foreach (Type classType in ClassMediatorMappings.Keys)
+                {
+                    //TODO: See if this would be better targetType.BaseType
+                    //if(targetType.IsSubclassOf(classType) || targetType.GetInterface(classType.Name) != null){
 
-		static Mediator CreateMediator (IMediatorTarget target, Type targetType)
-		{
-			Mediator m = (Mediator)Activator.CreateInstance (ClassMediatorMappings [targetType], target);
-			DIUtil.InjectProps (m as IInjectingTarget);
-			MediatorAssignments [target] = m;
-			m.Register ();
-			return m;
-		}
-
-		public static void DestroyMediator(IMediatorTarget target)
-		{
-			if(MediatorAssignments.ContainsKey(target)){
-				MediatorAssignments [target].Unregister ();
-				MediatorAssignments.Remove(target);
-			}
-		}
+                    // TODO: Patch-around for PCL
+                    if (targetType.IsSubclassOf(classType) || GetInterface(targetType, classType.Name) != null)
+                    {
+                        return CreateMediator(target, classType);
+                    }
+                }
+                //if still nothing we blow an exception
+                throw (new ArgumentException("Target type does not have mediator type mapped for it. Invoke MapMediatorToClass first."));
+            }
 
 
-		/*
-		 * Standard Get method
-		 */ 
-		public static TGet Get<TGet> ()
-			where TGet : class
-		{
-			//TODO: Look into inspecting constructor arguments
-			var t = typeof(TGet);
-			Console.WriteLine ("TGet {0}", t);
-			if (Instances.ContainsKey (typeof(TGet))) {
-				return Instances [typeof(TGet)] as TGet;
-			}
+            return CreateMediator(target, targetType);
 
-			if(!Injector.CanResolve<TGet>()){
-				throw(new ArgumentException("Target type cannot be resolved: " + t.FullName));
+        }
 
-			}
+        // TODO: Patch-around for PCL
+        static Type GetInterface(Type target, string typeName)
+        {
+            foreach (var iFace in target.GetInterfaces())
+            {
+                if (iFace.Name == typeName)
+                {
+                    return iFace;
+                }
+            }
+            return null;
+        }
 
-			return Injector.Resolve<TGet> ();
-		}
-	}
+        static Mediator CreateMediator(IMediatorTarget target, Type targetType)
+        {
+            Mediator m = (Mediator)Activator.CreateInstance(ClassMediatorMappings[targetType], target);
+            DIUtil.InjectProps(m as IInjectingTarget);
+            MediatorAssignments[target] = m;
+            m.Register();
+            return m;
+        }
+
+        public static void DestroyMediator(IMediatorTarget target)
+        {
+            if (MediatorAssignments.ContainsKey(target))
+            {
+                MediatorAssignments[target].Unregister();
+                MediatorAssignments.Remove(target);
+            }
+        }
+
+
+        /*
+         * Standard Get method
+         */
+        public static TGet Get<TGet>()
+            where TGet : class
+        {
+            //TODO: Look into inspecting constructor arguments
+            var t = typeof(TGet);
+            Debug.WriteLine("TGet {0}", t);
+            if (Instances.ContainsKey(typeof(TGet)))
+            {
+                return Instances[typeof(TGet)] as TGet;
+            }
+
+            if (!Injector.CanResolve<TGet>())
+            {
+                throw (new ArgumentException("Target type cannot be resolved: " + t.FullName));
+
+            }
+
+            return Injector.Resolve<TGet>();
+        }
+    }
 }
 
